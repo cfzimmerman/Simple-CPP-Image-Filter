@@ -14,52 +14,64 @@
 
 using namespace cimg_library;
 
+class RGB_Triple {
+private:
+    int red;
+    int green;
+    int blue;
+    int frequency;
+
+public:
+    RGB_Triple(int r = 0, int g = 0, int b = 0, int fr = 0) : red(r), green(g), blue(b), frequency(fr){};
+    void mergeValue(int r, int g, int b) {
+        int safeFrequency = frequency < 8421500 ? frequency : 8421500;
+        red = ((safeFrequency * red) + r) / (safeFrequency + 1);
+        green = ((safeFrequency * green) + g) / (safeFrequency + 1);
+        blue = ((safeFrequency * blue) + b) / (safeFrequency + 1);
+        frequency++;
+    }
+};
+
 class ImageFilter {
 private:
     CImg<unsigned char> image;
-    int roundingFactor = 8;
-    int topColorLimit = 8;
-    int paletteMaxIndex;
     std::vector<int> colorPalette;
-
+    int getLuminosityIndex(int intensity) { return (intensity > 128 ? 0 : 1); }
     void getColorPalette(void) {
-        // If there are errors with the image, catch them here
-        if (height == 0 || width == 0) {
-            return;
-        }
-
-        /* Load all the colors into an unordered map to count hue frequency. Key is
-         * minimized hex, value is frequency. */
-        std::unordered_map<int, int> colorMap;
+        int r, g, b, insertIndex;
+        // RGB
+        RGB_Triple vectorDefault;
+        std::vector<RGB_Triple> Rg = {vectorDefault, vectorDefault}, Rb = {vectorDefault, vectorDefault}, Gr = {vectorDefault, vectorDefault},
+                                Gb = {vectorDefault, vectorDefault}, Br = {vectorDefault, vectorDefault}, Bg = {vectorDefault, vectorDefault};
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                colorMap[((image(x, y, 0) * 65536) + (image(x, y, 1) * 256) + image(x, y, 2)) / roundingFactor]++;
+                r = image(x, y, 0);
+                g = image(x, y, 1);
+                b = image(x, y, 2);
+                if (r >= g && r >= b) {
+                    insertIndex = getLuminosityIndex(r);
+                    if (g >= b) {
+                        Rg[insertIndex].mergeValue(r, g, b);
+                    } else {
+                        Rb[insertIndex].mergeValue(r, g, b);
+                    }
+                } else if (g >= r && g >= b) {
+                    insertIndex = getLuminosityIndex(g);
+                    if (r >= b) {
+                        Gr[insertIndex].mergeValue(r, g, b);
+                    } else {
+                        Gb[insertIndex].mergeValue(r, g, b);
+                    }
+                } else {
+                    insertIndex = getLuminosityIndex(g);
+                    if (r >= b) {
+                        Br[insertIndex].mergeValue(r, g, b);
+                    } else {
+                        Bg[insertIndex].mergeValue(r, g, b);
+                    }
+                }
             }
         }
-
-        /* Find the top [topColorLimit] number of colors by frequency. By completion, topColors has
-         * all the most used hues sorted by highest to least frequency. */
-        std::multimap<int, int, std::greater<int>> topColors;
-        for (auto colorPair : colorMap) {
-            if (topColors.size() < topColorLimit || colorPair.second > topColors.rbegin()->first) {
-                topColors.insert(std::pair<int, int>(colorPair.second, colorPair.first));
-            }
-            if (topColors.size() > topColorLimit) {
-                topColors.erase(topColors.rbegin()->first);
-            }
-        }
-
-        // Add the colors to a vector that can be used as the final color palette.
-        for (auto colorRank : topColors) {
-            // Exclude black, which is used for drawing lines.
-            if (colorRank.second != 0) {
-                colorPalette.push_back(colorRank.second * roundingFactor);
-            }
-        }
-
-        // Sort the color values (currently sorted by frequency) by hue, ascending.
-        std::sort(colorPalette.begin(), colorPalette.end());
-        paletteMaxIndex = colorPalette.size() - 1;
     }
 
     std::vector<int> formatPixelColors(int hexAsInt) {
@@ -72,26 +84,10 @@ private:
         return result;
     }
 
-    std::vector<int> getPaletteHue(int originalColor, int minIndex, int maxIndex) {
-        if (originalColor <= colorPalette[minIndex]) {
-            return formatPixelColors(colorPalette[minIndex]);
+    /*
+        std::vector<int> getPaletteHue(int originalColor, int minIndex, int maxIndex) {
         }
-        if (originalColor >= colorPalette[maxIndex]) {
-            return formatPixelColors(colorPalette[maxIndex]);
-        }
-        if (maxIndex == minIndex + 1) {
-            return formatPixelColors(colorPalette[maxIndex]);
-        }
-        int midIndex = (maxIndex + minIndex) / 2;
-        if (originalColor == colorPalette[midIndex]) {
-            return formatPixelColors(colorPalette[midIndex]);
-        }
-        if (originalColor < colorPalette[midIndex]) {
-            return getPaletteHue(originalColor, minIndex + 1, midIndex - 1);
-        } else {
-            return getPaletteHue(originalColor, midIndex + 1, maxIndex - 1);
-        }
-    }
+    */
 
 public:
     int width;
@@ -110,31 +106,12 @@ public:
     }
     bool isValid(void) { return (colorPalette.size() > 2); }
     void saveImageFile(void) { image.save("output.jpeg"); }
-    void applyFilter(void) {
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                std::vector<int> newColors = getPaletteHue(((image(x, y, 0) * 65536) + (image(x, y, 1) * 256) + image(x, y, 2)), 0, paletteMaxIndex);
-                image(x, y, 0) = newColors[0];
-                image(x, y, 1) = newColors[1];
-                image(x, y, 2) = newColors[2];
-            }
-        }
-    }
+    void applyFilter(void) {}
 };
 
 int main() {
-    std::string uri = "targetImage2.jpeg";
+    std::string uri = "targetImage.jpeg";
     ImageFilter filteredImage(uri.c_str());
-
-    if (!filteredImage.isValid()) {
-        std::cout << "ERROR: Palette size less than 2.";
-        return 1;
-    }
-
-    // filteredImage.printPalette();
-
-    filteredImage.applyFilter();
-    filteredImage.saveImageFile();
 
     return 0;
 }
