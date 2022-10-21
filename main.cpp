@@ -35,14 +35,15 @@ public:
 class ImageFilter {
 private:
     CImg<unsigned char> image;
-    std::vector<int> colorPalette;
+    std::vector<RGB_Triple> colorPalette;
     int getLuminosityIndex(int intensity) { return (intensity > 128 ? 0 : 1); }
+    RGB_Triple vectorDefault;
+    // Colors ranked by greatest to least pronounced color value. Rg is red >= green >= blue, Bg is blue >= green >= red, etc. Each set has a value
+    // for lighter and darker hues. Index 0 is for lighter (dominant value greater than half), index 1 is for darker (dominant value less than half).
+    std::vector<RGB_Triple> Rg = {vectorDefault, vectorDefault}, Rb = {vectorDefault, vectorDefault}, Gr = {vectorDefault, vectorDefault},
+                            Gb = {vectorDefault, vectorDefault}, Br = {vectorDefault, vectorDefault}, Bg = {vectorDefault, vectorDefault};
     void getColorPalette(void) {
         int r, g, b, insertIndex;
-        // RGB
-        RGB_Triple vectorDefault;
-        std::vector<RGB_Triple> Rg = {vectorDefault, vectorDefault}, Rb = {vectorDefault, vectorDefault}, Gr = {vectorDefault, vectorDefault},
-                                Gb = {vectorDefault, vectorDefault}, Br = {vectorDefault, vectorDefault}, Bg = {vectorDefault, vectorDefault};
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 r = image(x, y, 0);
@@ -74,6 +75,8 @@ private:
         }
     }
 
+    // For converting nearby color values, follow the same way as we followed in. Just don't calculate new averages.
+
     std::vector<int> formatPixelColors(int hexAsInt) {
         std::vector<int> result = {0, 0, 0};
         result[0] = hexAsInt >= 65536 ? (hexAsInt / 65536) : 0;
@@ -99,11 +102,7 @@ public:
         height = image.height();
         getColorPalette();
     }
-    void printPalette(void) {
-        for (int color : colorPalette) {
-            std::cout << std::hex << color << std::endl;
-        }
-    }
+    void printPalette(void) {}
     bool isValid(void) { return (colorPalette.size() > 2); }
     void saveImageFile(void) { image.save("output.jpeg"); }
     void applyFilter(void) {}
