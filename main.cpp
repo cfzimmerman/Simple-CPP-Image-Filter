@@ -30,6 +30,9 @@ public:
         blue = ((safeFrequency * blue) + b) / (safeFrequency + 1);
         frequency++;
     }
+    int getRed(void) { return red; }
+    int getGreen(void) { return green; }
+    int getBlue(void) { return blue; }
 };
 
 class ImageFilter {
@@ -41,7 +44,8 @@ private:
     // Colors ranked by greatest to least pronounced color value. Rg is red >= green >= blue, Bg is blue >= green >= red, etc. Each set has a value
     // for lighter and darker hues. Index 0 is for lighter (dominant value greater than half), index 1 is for darker (dominant value less than half).
     std::vector<RGB_Triple> Rg = {vectorDefault, vectorDefault}, Rb = {vectorDefault, vectorDefault}, Gr = {vectorDefault, vectorDefault},
-                            Gb = {vectorDefault, vectorDefault}, Br = {vectorDefault, vectorDefault}, Bg = {vectorDefault, vectorDefault};
+                            Gb = {vectorDefault, vectorDefault}, Br = {vectorDefault, vectorDefault}, Bg = {vectorDefault, vectorDefault},
+                            noColor = {vectorDefault, vectorDefault};
     void getColorPalette(void) {
         int r, g, b, insertIndex;
         for (int y = 0; y < height; y++) {
@@ -49,7 +53,10 @@ private:
                 r = image(x, y, 0);
                 g = image(x, y, 1);
                 b = image(x, y, 2);
-                if (r >= g && r >= b) {
+                if (r == g && r == b) {
+                    insertIndex = getLuminosityIndex(r);
+                    noColor[insertIndex].mergeValue(r, g, b);
+                } else if (r >= g && r >= b) {
                     insertIndex = getLuminosityIndex(r);
                     if (g >= b) {
                         Rg[insertIndex].mergeValue(r, g, b);
@@ -75,22 +82,30 @@ private:
         }
     }
 
-    // For converting nearby color values, follow the same way as we followed in. Just don't calculate new averages.
-
-    std::vector<int> formatPixelColors(int hexAsInt) {
-        std::vector<int> result = {0, 0, 0};
-        result[0] = hexAsInt >= 65536 ? (hexAsInt / 65536) : 0;
-        hexAsInt -= result[0] * 65536;
-        result[1] = hexAsInt >= 256 ? (hexAsInt / 256) : 0;
-        hexAsInt -= result[1] * 256;
-        result[2] = hexAsInt;
-        return result;
-    }
-
-    /*
-        std::vector<int> getPaletteHue(int originalColor, int minIndex, int maxIndex) {
+    RGB_Triple getPaletteHue(int r, int g, int b) {
+        int brightnessIndex;
+        if (r == g && r == b) {
+            brightnessIndex = getLuminosityIndex(r);
+            return noColor[brightnessIndex];
+        } else if (r >= g && r >= b) {
+            brightnessIndex = getLuminosityIndex(r);
+            if (g >= b) {
+                return Rg[brightnessIndex];
+            }
+            return Rb[brightnessIndex];
+        } else if (g >= r && g >= b) {
+            brightnessIndex = getLuminosityIndex(g);
+            if (r >= b) {
+                return Gr[brightnessIndex];
+            }
+            return Gb[brightnessIndex];
         }
-    */
+        brightnessIndex = getLuminosityIndex(b);
+        if (r >= g) {
+            return Br[brightnessIndex];
+        }
+        return Bg[brightnessIndex];
+    }
 
 public:
     int width;
@@ -102,16 +117,52 @@ public:
         height = image.height();
         getColorPalette();
     }
-    void printPalette(void) {}
+    void printPalette(void) {
+        std::cout << "\nNo color: White, black, grey: " << std::endl;
+        std::cout << "noColor[0]: " << noColor[0].getRed() << ", " << noColor[0].getGreen() << ", " << noColor[0].getBlue() << std::endl;
+        std::cout << "noColor[1]: " << noColor[1].getRed() << ", " << noColor[1].getGreen() << ", " << noColor[1].getBlue() << std::endl;
+
+        std::cout << "\nRed dominant: Red-Green, Red-Blue: " << std::endl;
+        std::cout << "Rg[0]: " << Rg[0].getRed() << ", " << Rg[0].getGreen() << ", " << Rg[0].getBlue() << std::endl;
+        std::cout << "Rg[1]: " << Rg[1].getRed() << ", " << Rg[1].getGreen() << ", " << Rg[1].getBlue() << std::endl;
+        std::cout << "Rb[0]: " << Rb[0].getRed() << ", " << Rb[0].getGreen() << ", " << Rb[0].getBlue() << std::endl;
+        std::cout << "Rb[1]: " << Rb[1].getRed() << ", " << Rb[1].getGreen() << ", " << Rb[1].getBlue() << std::endl;
+
+        std::cout << "\nGreen dominant: Green-Red, Green-Blue: " << std::endl;
+        std::cout << "Gr[0]: " << Gr[0].getRed() << ", " << Gr[0].getGreen() << ", " << Gr[0].getBlue() << std::endl;
+        std::cout << "Gr[1]: " << Gr[1].getRed() << ", " << Gr[1].getGreen() << ", " << Gr[1].getBlue() << std::endl;
+        std::cout << "Gb[0]: " << Gb[0].getRed() << ", " << Gb[0].getGreen() << ", " << Gb[0].getBlue() << std::endl;
+        std::cout << "Gb[1]: " << Gb[1].getRed() << ", " << Gb[1].getGreen() << ", " << Gb[1].getBlue() << std::endl;
+
+        std::cout << "\nBlue dominant: Blue-Red, Blue-Green: " << std::endl;
+        std::cout << "Br[0]: " << Br[0].getRed() << ", " << Br[0].getGreen() << ", " << Br[0].getBlue() << std::endl;
+        std::cout << "Br[1]: " << Br[1].getRed() << ", " << Br[1].getGreen() << ", " << Br[1].getBlue() << std::endl;
+        std::cout << "Bg[0]: " << Bg[0].getRed() << ", " << Bg[0].getGreen() << ", " << Bg[0].getBlue() << std::endl;
+        std::cout << "Bg[1]: " << Bg[1].getRed() << ", " << Bg[1].getGreen() << ", " << Bg[1].getBlue() << std::endl;
+        std::cout << "\n";
+    }
+
     bool isValid(void) { return (colorPalette.size() > 2); }
     void saveImageFile(void) { image.save("output.jpeg"); }
-    void applyFilter(void) {}
+    void applyFilter(void) {
+        RGB_Triple newColor;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                newColor = getPaletteHue(image(x, y, 0), image(x, y, 1), image(x, y, 2));
+                image(x, y, 0) = newColor.getRed();
+                image(x, y, 1) = newColor.getGreen();
+                image(x, y, 2) = newColor.getBlue();
+            }
+        };
+    }
 };
 
 int main() {
-    std::string uri = "targetImage.jpeg";
+    std::string uri = "targetImage3.jpeg";
     ImageFilter filteredImage(uri.c_str());
 
+    filteredImage.applyFilter();
+    filteredImage.saveImageFile();
     return 0;
 }
 
