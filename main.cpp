@@ -24,10 +24,23 @@ private:
 public:
     RGB_Triple(int r = 0, int g = 0, int b = 0, int fr = 0) : red(r), green(g), blue(b), frequency(fr){};
     void mergeValue(int r, int g, int b) {
-        int safeFrequency = frequency < 8421500 ? frequency : 8421500;
-        red = ((safeFrequency * red) + r) / (safeFrequency + 1);
-        green = ((safeFrequency * green) + g) / (safeFrequency + 1);
-        blue = ((safeFrequency * blue) + b) / (safeFrequency + 1);
+        if (frequency < 10) {
+            int safeFrequency = frequency < 8421500 ? frequency : 8421500;
+            red = ((safeFrequency * red) + r) / (safeFrequency + 1);
+            green = ((safeFrequency * green) + g) / (safeFrequency + 1);
+            blue = ((safeFrequency * blue) + b) / (safeFrequency + 1);
+        } else {
+            red = (red * 9 + r) / 10;
+            green = (green * 9 + g) / 10;
+            blue = (blue * 9 + b) / 10;
+        }
+        /*
+            int safeFrequency = frequency < 8421500 ? frequency : 8421500;
+            red = (safeFrequency * red + r) / (safeFrequency + 1);
+            green = (safeFrequency * green + g) / (safeFrequency + 1);
+            blue = (safeFrequency * blue + b) / (safeFrequency + 1);
+        */
+
         frequency++;
     }
     int getRed(void) { return red; }
@@ -39,13 +52,23 @@ class ImageFilter {
 private:
     CImg<unsigned char> image;
     std::vector<RGB_Triple> colorPalette;
-    int getLuminosityIndex(int intensity) { return (intensity > 128 ? 0 : 1); }
+    int getLuminosityIndex(int intensity) {
+        if (intensity > 170) {
+            return 0;
+        } else if (intensity < 85) {
+            return 2;
+        }
+        return 1;
+    }
+    int getColorIndex(int intensity) { return (intensity > 170 ? 0 : 1); }
     RGB_Triple vectorDefault;
     // Colors ranked by greatest to least pronounced color value. Rg is red >= green >= blue, Bg is blue >= green >= red, etc. Each set has a value
     // for lighter and darker hues. Index 0 is for lighter (dominant value greater than half), index 1 is for darker (dominant value less than half).
-    std::vector<RGB_Triple> Rg = {vectorDefault, vectorDefault}, Rb = {vectorDefault, vectorDefault}, Gr = {vectorDefault, vectorDefault},
-                            Gb = {vectorDefault, vectorDefault}, Br = {vectorDefault, vectorDefault}, Bg = {vectorDefault, vectorDefault},
-                            noColor = {vectorDefault, vectorDefault};
+    std::vector<RGB_Triple> Rg = {vectorDefault, vectorDefault, vectorDefault}, Rb = {vectorDefault, vectorDefault, vectorDefault},
+                            Gr = {vectorDefault, vectorDefault, vectorDefault}, Gb = {vectorDefault, vectorDefault, vectorDefault},
+                            Br = {vectorDefault, vectorDefault, vectorDefault}, Bg = {vectorDefault, vectorDefault, vectorDefault},
+                            noColor = {vectorDefault, vectorDefault, vectorDefault};
+
     void getColorPalette(void) {
         int r, g, b, insertIndex;
         for (int y = 0; y < height; y++) {
@@ -70,7 +93,7 @@ private:
                     } else {
                         Gb[insertIndex].mergeValue(r, g, b);
                     }
-                } else {
+                } else if (b >= r && b >= g) {
                     insertIndex = getLuminosityIndex(g);
                     if (r >= b) {
                         Br[insertIndex].mergeValue(r, g, b);
@@ -158,7 +181,7 @@ public:
 };
 
 int main() {
-    std::string uri = "targetImage3.jpeg";
+    std::string uri = "targetImage1.jpeg";
     ImageFilter filteredImage(uri.c_str());
 
     filteredImage.applyFilter();
