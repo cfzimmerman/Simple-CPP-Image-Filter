@@ -162,4 +162,5 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-// clang++ main.cpp -o main -I/opt/X11/include -L/opt/X11/lib -lX11 -lpthread -std=c++11
+// clang++ -Wno-deprecated main.cpp -o main -I/opt/X11/include -L/opt/X11/lib -lX11 -lpthread -std=c++11
+// g++ -std=c++11 -Wno-deprecated -I/opt/X11/include -L/opt/X11/lib -lX11 -lpthread main.cpp -o main
