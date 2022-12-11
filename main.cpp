@@ -16,8 +16,10 @@
 
 using namespace cimg_library;
 
+// RGB_Triple is a frequently-used structure for storing data about a given color within an image.
 class RGB_Triple {
 private:
+    // Commonly used variables. Instantiated here and reused to speed up by reducing the number of allocations needed in loops.
     int red;
     int green;
     int blue;
@@ -47,6 +49,7 @@ private:
     int width;
     int height;
     CImg<unsigned char> image;
+    // The filter averages the colors in different R, G, and B color categories and creates a palette with light and dark options for each.
     int getLuminosityIndex(int intensity) {
         if (intensity > 170) {
             return 0;
@@ -96,7 +99,7 @@ private:
             }
         }
     }
-
+    // Based on the RGB and luminosity alignment of an input color, return the closest color available within the pre-defined palette.
     RGB_Triple getPaletteHue(int r, int g, int b) {
         if (r == g && r == b) {
             return noColor[getLuminosityIndex(r)];
@@ -116,6 +119,7 @@ private:
         }
         return Bg[getLuminosityIndex(b)];
     }
+    // Renames filtered files and places them in an output folder.
     std::string getFileName(std::string uri) {
         int searcher, slash = 0;
         for (searcher = 0; searcher < uri.size(); searcher++) {
@@ -124,7 +128,7 @@ private:
                 slash++;
             }
         }
-        return ("filtered-" + uri.substr(slash, searcher));
+        return ("output/filtered-" + uri.substr(slash, searcher));
     }
 
 public:
@@ -154,6 +158,7 @@ int main(int argc, char *argv[]) {
         std::cout << "Please provide a file name argument" << std::endl;
         return 1;
     }
+    // Image file URL is passed as a CLI argument
     std::string uri = argv[1];
     ImageFilter newImage(uri.c_str());
 
@@ -162,5 +167,10 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-// clang++ -Wno-deprecated main.cpp -o main -I/opt/X11/include -L/opt/X11/lib -lX11 -lpthread -std=c++11
-// g++ -std=c++11 -Wno-deprecated -I/opt/X11/include -L/opt/X11/lib -lX11 -lpthread main.cpp -o main
+/*
+To compile: (deprecated flag needed as of Dec. 2022)
+g++ -std=c++11 -Wno-deprecated -I/opt/X11/include -L/opt/X11/lib -lX11 -lpthread main.cpp -o main
+
+To run:
+./main input/img3.jpeg
+*/
